@@ -1,0 +1,864 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DELTARUNE: SOUL Shmup - Combo Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+New:wght=700&display=swap');
+        
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+
+        #game-container {
+            position: relative;
+            width: 660px;
+            background: #000;
+            border: 4px solid #fff;
+            padding: 10px;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.2);
+            outline: none;
+        }
+
+
+        canvas {
+            background: #000;
+            display: block;
+            border: 2px solid #555;
+            box-sizing: border-box;
+        }
+
+
+        .ui-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 15px;
+        }
+
+
+        .bar-container {
+            width: 140px;
+            height: 16px;
+            background: #444;
+            border: 2px solid #fff;
+            position: relative;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.1s ease;
+        }
+
+
+        #hp-fill { background: #ff0000; }
+        #tp-fill { background: #ff00ff; }
+
+
+        .soul-badges, .spell-badges {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            gap: 4px;
+        }
+
+
+        .badge {
+            flex: 1;
+            padding: 6px 2px;
+            font-size: 10px;
+            text-align: center;
+            border: 2px solid #555;
+            background: #111;
+            cursor: pointer;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+
+        .badge.active {
+            border-color: #fff;
+            color: #fff;
+            font-weight: bold;
+        }
+
+
+        /* Soul Color Badges */
+        #b-red.active { background: #ff0000; color: #000; }
+        #b-yellow.active { background: #ffff00; color: #000; }
+        #b-purple.active { background: #d000ff; color: #000; }
+        #b-green.active { background: #00ff00; color: #000; }
+        #b-cyan.active { background: #00ffff; color: #000; }
+        #b-orange.active { background: #ff9900; color: #000; }
+        #b-blue.active { background: #0000ff; color: #fff; }
+        
+        /* Combo Badges */
+        #b-cya-org.active { background: linear-gradient(135deg, #00ffff, #ff9900); color: #000; }
+        #b-yel-grn.active { background: linear-gradient(135deg, #ffff00, #00ff00); color: #000; }
+        #b-blu-pur.active { background: linear-gradient(135deg, #2040ff, #d000ff); color: #fff; }
+
+
+        .spell-badge {
+            flex: 1;
+            padding: 8px;
+            font-size: 11px;
+            text-align: center;
+            border: 2px solid #555;
+            background: #151515;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+
+        .spell-badge.ready {
+            border-color: #ff00ff;
+            color: #fff;
+            cursor: pointer;
+            background: #300030;
+        }
+
+
+        .instructions {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+
+<div id="game-container" tabindex="0">
+    <canvas id="gameCanvas" width="640" height="420"></canvas>
+
+
+    <div class="ui-row">
+        <div>SOUL: <span id="soul-name-display" style="color:#ff0000;">RED</span></div>
+        <div>
+            HP: <div class="bar-container"><div id="hp-fill" class="bar-fill"></div></div>
+            <span id="hp-text">100/100</span>
+        </div>
+        <div>
+            TP: <div class="bar-container"><div id="tp-fill" class="bar-fill"></div></div>
+            <span id="tp-text">0%</span>
+        </div>
+        <div>SCORE: <span id="score-display">0</span></div>
+    </div>
+
+
+    <!-- Standard SOULs -->
+    <div class="soul-badges">
+        <div id="b-red" class="badge active" onclick="setSoul(1)">1:RED</div>
+        <div id="b-yellow" class="badge" onclick="setSoul(2)">2:YEL</div>
+        <div id="b-purple" class="badge" onclick="setSoul(3)">3:PUR</div>
+        <div id="b-green" class="badge" onclick="setSoul(4)">4:GRN</div>
+        <div id="b-cyan" class="badge" onclick="setSoul(5)">5:CYN</div>
+        <div id="b-orange" class="badge" onclick="setSoul(6)">6:ORN</div>
+        <div id="b-blue" class="badge" onclick="setSoul(7)">7:BLU</div>
+    </div>
+
+
+    <!-- Combo SOULs -->
+    <div class="soul-badges">
+        <div id="b-cya-org" class="badge" onclick="setSoul(8)">8:CYA-ORG</div>
+        <div id="b-yel-grn" class="badge" onclick="setSoul(9)">9:YEL-GRN</div>
+        <div id="b-blu-pur" class="badge" onclick="setSoul(10)">0:BLU-PUR</div>
+    </div>
+
+
+    <div class="spell-badges">
+        <div id="s-rude" class="spell-badge" onclick="castSpell('rude')">[Q] RUDE BUSTER</div>
+        <div id="s-heal" class="spell-badge" onclick="castSpell('heal')">[W] DUAL HEAL</div>
+        <div id="s-snow" class="spell-badge" onclick="castSpell('snow')">[E] SNOWGRAVE</div>
+    </div>
+
+
+    <div class="instructions">
+        Click on screen to focus! | [1-7]: Normal SOULs | [8-0]: Combo Fusions<br>
+        [Arrows]: Move / Aim Spear (GRN) | [Z / Space]: Shoot / Shield | [X]: Focus<br>
+        [Enter]: Restart on Defeat
+    </div>
+</div>
+
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('game-container');
+
+
+    const AudioEngine = {
+        ctx: null,
+        init() { 
+            if (!this.ctx) {
+                try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+            }
+            if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+        },
+        play(freq, type, duration, vol=0.1) {
+            try {
+                this.init();
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            } catch(e) {}
+        }
+    };
+
+
+    window.addEventListener('click', () => { 
+        AudioEngine.init(); 
+        container.focus();
+    });
+
+
+    let gameActive = true;
+    let score = 0;
+    let hp = 100;
+    let maxHp = 100;
+    let tp = 0;
+
+
+    let player = {
+        x: canvas.width / 2,
+        y: canvas.height - 80,
+        size: 16,
+        speed: 4,
+        vx: 0, vy: 0,
+        lastX: canvas.width / 2, lastY: canvas.height - 80,
+        purpleLane: 1,
+        isGrounded: false,
+        spearAngle: 0
+    };
+
+
+    const SOULS = {
+        1: { name: 'RED', color: '#ff0000', badge: 'b-red' },
+        2: { name: 'YELLOW', color: '#ffff00', badge: 'b-yellow' },
+        3: { name: 'PURPLE', color: '#d000ff', badge: 'b-purple' },
+        4: { name: 'GREEN', color: '#00ff00', badge: 'b-green' },
+        5: { name: 'CYAN', color: '#00ffff', badge: 'b-cyan' },
+        6: { name: 'ORANGE', color: '#ff9900', badge: 'b-orange' },
+        7: { name: 'BLUE', color: '#2040ff', badge: 'b-blue' },
+        8: { name: 'CYA-ORG (COMBO)', color: '#00ffff', badge: 'b-cya-org' },
+        9: { name: 'YEL-GRN (COMBO)', color: '#ffff00', badge: 'b-yel-grn' },
+        10: { name: 'BLU-PUR (COMBO)', color: '#d000ff', badge: 'b-blu-pur' }
+    };
+    let activeSoul = 1;
+
+
+    let keys = {};
+    let bullets = [];
+    let enemyBullets = [];
+    let enemies = [];
+    let bosses = [];
+    let particles = [];
+    let combatTexts = [];
+    let backgroundStars = [];
+
+
+    const lanes = [canvas.height - 130, canvas.height - 80, canvas.height - 30];
+
+
+    for(let i=0; i<40; i++) {
+        backgroundStars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, speed: Math.random()*2 + 1 });
+    }
+
+
+    window.addEventListener('keydown', e => {
+        let k = e.key.toLowerCase();
+        
+        if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            e.preventDefault();
+        }
+
+
+        keys[k] = true;
+        keys[e.code.toLowerCase()] = true;
+
+
+        if (gameActive) {
+            if (e.key >= '1' && e.key <= '7') setSoul(parseInt(e.key));
+            if (e.key === '8') setSoul(8);
+            if (e.key === '9') setSoul(9);
+            if (e.key === '0') setSoul(10);
+            
+            if (activeSoul === 3 || activeSoul === 10) {
+                if (e.key === 'ArrowUp') { player.purpleLane = Math.max(0, player.purpleLane - 1); AudioEngine.play(300, 'square', 0.05); }
+                if (e.key === 'ArrowDown') { player.purpleLane = Math.min(2, player.purpleLane + 1); AudioEngine.play(300, 'square', 0.05); }
+            }
+
+
+            if (activeSoul === 7 || activeSoul === 10) {
+                if ((e.key === 'ArrowUp' || e.key === ' ') && player.isGrounded) {
+                    player.vy = -11;
+                    player.isGrounded = false;
+                    AudioEngine.play(200, 'triangle', 0.15);
+                } else if (e.key === 'ArrowDown' && !player.isGrounded) {
+                    player.vy = 18;
+                    spawnText("GROUND POUND!", player.x, player.y - 25, activeSoul === 10 ? '#d000ff' : '#2040ff');
+                    AudioEngine.play(80, 'sawtooth', 0.3, 0.4);
+                }
+            }
+
+
+            if (k === 'q') castSpell('rude');
+            if (k === 'w') castSpell('heal');
+            if (k === 'e') castSpell('snow');
+        } else if (e.key === 'Enter') {
+            resetGame();
+        }
+    });
+
+
+    window.addEventListener('keyup', e => {
+        keys[e.key.toLowerCase()] = false;
+        keys[e.code.toLowerCase()] = false;
+    });
+
+
+    function setSoul(id) {
+        if(!SOULS[id]) return;
+        document.querySelectorAll('.badge').forEach(b => b.classList.remove('active'));
+        activeSoul = id;
+        
+        let targetBadge = document.getElementById(SOULS[id].badge);
+        if(targetBadge) targetBadge.classList.add('active');
+
+
+        let nameDisp = document.getElementById('soul-name-display');
+        nameDisp.innerText = SOULS[id].name;
+        nameDisp.style.color = SOULS[id].color;
+
+
+        if(id === 3 || id === 10) player.y = lanes[player.purpleLane];
+        if(id === 4) { player.x = canvas.width/2; player.y = canvas.height - 100; }
+        if(id === 6 || id === 8) { player.vx = 0; player.vy = -3; }
+        
+        spawnText(SOULS[id].name, player.x, player.y - 20, SOULS[id].color);
+        AudioEngine.play(440, 'sine', 0.1);
+    }
+
+
+    function spawnText(txt, x, y, color='#fff') {
+        combatTexts.push({ txt, x, y, color, alpha: 1, life: 45 });
+    }
+
+
+    function addTP(val) { tp = Math.min(100, tp + val); }
+
+
+    function createExplosion(x, y, color, count=12) {
+        for(let i=0; i<count; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                size: Math.random() * 4 + 2,
+                color,
+                life: 30
+            });
+        }
+    }
+
+
+    function castSpell(type) {
+        if (!gameActive) return;
+        if (type === 'rude' && tp >= 40) {
+            tp -= 40;
+            bullets.push({ x: player.x, y: player.y, type: 'rude', size: 20, speed: -8 });
+            spawnText("RUDE BUSTER!", player.x, player.y - 35, '#ff00ff');
+            AudioEngine.play(120, 'sawtooth', 0.4, 0.2);
+        } else if (type === 'heal' && tp >= 50) {
+            tp -= 50;
+            hp = Math.min(maxHp, hp + 30);
+            createExplosion(player.x, player.y, '#00ff00', 20);
+            spawnText("+30 HP", player.x, player.y - 35, '#00ff00');
+            AudioEngine.play(600, 'sine', 0.3, 0.2);
+        } else if (type === 'snow' && tp >= 100) {
+            tp -= 100;
+            enemies.forEach(en => { createExplosion(en.x, en.y, '#00ffff', 15); score += 100; });
+            bosses.forEach(b => { b.hp -= 50; createExplosion(b.x, b.y, '#00ffff', 25); });
+            enemyBullets.forEach(b => createExplosion(b.x, b.y, '#ffffff', 2));
+            enemyBullets = [];
+            enemies = [];
+            canvas.style.borderColor = '#00ffff';
+            setTimeout(() => canvas.style.borderColor = '#555', 400);
+            spawnText("SNOWGRAVE", canvas.width/2, canvas.height/2, '#00ffff');
+            AudioEngine.play(80, 'sawtooth', 0.8, 0.3);
+        }
+    }
+
+
+    function damagePlayer(amount, bulletColor='white') {
+        let isMoving = Math.abs(player.x - player.lastX) > 0.5 || Math.abs(player.y - player.lastY) > 0.5;
+
+
+        if ((activeSoul === 5 || activeSoul === 8) && !isMoving) {
+            addTP(6);
+            spawnText("BARRIER ABSORB!", player.x, player.y - 25, '#00ffff');
+            return;
+        }
+
+
+        if ((activeSoul === 6 || activeSoul === 8) && bulletColor === 'orange' && isMoving) {
+            addTP(4);
+            spawnText("ORANGE PHASE!", player.x, player.y - 25, '#ff9900');
+            return;
+        }
+
+
+        hp = Math.max(0, hp - amount);
+        spawnText(`-${amount} HP`, player.x, player.y - 25, '#ff0000');
+        AudioEngine.play(150, 'sawtooth', 0.15, 0.25);
+        if (hp <= 0) {
+            gameActive = false;
+            createExplosion(player.x, player.y, '#ff0000', 40);
+        }
+    }
+
+
+    function resetGame() {
+        gameActive = true;
+        score = 0; hp = 100; tp = 0;
+        enemies = []; bosses = []; bullets = []; enemyBullets = []; particles = []; combatTexts = [];
+        player.x = canvas.width / 2; player.y = canvas.height - 80; player.vx = 0; player.vy = -3;
+        setSoul(1);
+    }
+
+
+    let frame = 0;
+    function update() {
+        frame++;
+        player.lastX = player.x;
+        player.lastY = player.y;
+
+
+        backgroundStars.forEach(s => {
+            s.y += s.speed;
+            if(s.y > canvas.height) { s.y = 0; s.x = Math.random()*canvas.width; }
+        });
+
+
+        if (!gameActive) return;
+
+
+        if (score > 0 && score % 1000 === 0 && bosses.length === 0) {
+            let bossType = (score % 2000 === 0) ? 'spamton' : 'jevil';
+            bosses.push({ type: bossType, x: canvas.width / 2, y: 70, hp: 30, maxHp: 30, vx: 2, timer: 0 });
+            spawnText(`WARNING: ${bossType.toUpperCase()} APPEARED!`, canvas.width/2, 140, bossType === 'jevil' ? '#9400D3' : '#FFD700');
+            AudioEngine.play(100, 'sawtooth', 0.5, 0.3);
+        }
+
+
+        let currentSpeed = player.speed;
+        let isFocused = keys['x'] || keys['shift'];
+        if (isFocused) currentSpeed /= 2;
+
+
+        if (![3, 4, 6, 8, 10].includes(activeSoul)) {
+            if (keys['arrowleft']) player.x -= currentSpeed;
+            if (keys['arrowright']) player.x += currentSpeed;
+            if (activeSoul !== 7) {
+                if (keys['arrowup']) player.y -= currentSpeed;
+                if (keys['arrowdown']) player.y += currentSpeed;
+            }
+        }
+
+
+        // GREEN (4) Spear Control
+        if (activeSoul === 4) {
+            if (keys['arrowleft']) { player.x -= currentSpeed; player.spearAngle = Math.PI; }
+            if (keys['arrowright']) { player.x += currentSpeed; player.spearAngle = 0; }
+            if (keys['arrowup']) { player.y -= currentSpeed; player.spearAngle = -Math.PI / 2; }
+            if (keys['arrowdown']) { player.y += currentSpeed; player.spearAngle = Math.PI / 2; }
+        }
+
+
+        if (activeSoul === 6 || activeSoul === 8) {
+            if (keys['arrowleft']) player.vx = -currentSpeed;
+            if (keys['arrowright']) player.vx = currentSpeed;
+            if (keys['arrowup']) player.vy = -currentSpeed;
+            if (keys['arrowdown']) player.vy = currentSpeed;
+
+
+            if (player.x <= player.size || player.x >= canvas.width - player.size) player.vx *= -1;
+            if (player.y <= player.size || player.y >= canvas.height - player.size) player.vy *= -1;
+
+
+            player.x += player.vx; player.y += player.vy;
+        }
+
+
+        if (activeSoul === 3 || activeSoul === 10) {
+            player.y += (lanes[player.purpleLane] - player.y) * 0.3;
+            if (keys['arrowleft']) player.x -= currentSpeed;
+            if (keys['arrowright']) player.x += currentSpeed;
+        }
+
+
+        if (activeSoul === 7 || activeSoul === 10) {
+            player.vy += 0.5;
+            player.y += player.vy;
+            let floor = (activeSoul === 10) ? lanes[player.purpleLane] : canvas.height - 40;
+            if (player.y >= floor) {
+                player.y = floor; player.vy = 0; player.isGrounded = true;
+            }
+        }
+
+
+        player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
+        player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+
+
+        let fireKey = keys['z'] || keys[' '];
+        let fireRate = (activeSoul === 2 || activeSoul === 9) ? 5 : 10;
+
+
+        if (fireKey && activeSoul !== 4 && frame % fireRate === 0) {
+            let bulletType = (activeSoul === 2 || activeSoul === 9) ? 'yellow' : 'standard';
+            bullets.push({ x: player.x, y: player.y - 10, type: bulletType, size: 6, speed: -10 });
+            AudioEngine.play(500, 'sawtooth', 0.05, 0.05);
+        }
+
+
+        if (bosses.length === 0) {
+            let baseSpawnRate = Math.max(20, 70 - Math.floor(score / 500) * 5);
+            if (frame % baseSpawnRate === 0) {
+                let types = ['spade', 'diamond', 'wave'];
+                let type = types[Math.floor(Math.random() * types.length)];
+                enemies.push({
+                    x: Math.random() * (canvas.width - 60) + 30, y: -20, type: type, hp: type === 'diamond' ? 3 : 1,
+                    speed: Math.random() * 1.5 + 1 + (score/2000), amp: Math.random() * 40 + 20, freq: Math.random() * 0.03 + 0.01, startX: 0
+                });
+                enemies[enemies.length-1].startX = enemies[enemies.length-1].x;
+            }
+        }
+
+
+        bosses.forEach((boss) => {
+            boss.timer++; boss.x += boss.vx;
+            if (boss.x < 60 || boss.x > canvas.width - 60) boss.vx *= -1;
+
+
+            if (boss.type === 'jevil') {
+                if (boss.timer % 40 === 0) {
+                    for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+                        enemyBullets.push({ x: boss.x, y: boss.y, vx: Math.cos(a)*3.5, vy: Math.sin(a)*3.5, size: 6, color: 'white' });
+                    }
+                    AudioEngine.play(300, 'square', 0.05, 0.1);
+                }
+            } else if (boss.type === 'spamton') {
+                if (boss.timer % 30 === 0) {
+                    let angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+                    enemyBullets.push({ x: boss.x, y: boss.y, vx: Math.cos(angle)*5, vy: Math.sin(angle)*5, size: 7, color: 'orange' });
+                    AudioEngine.play(600, 'sawtooth', 0.05, 0.1);
+                }
+            }
+        });
+
+
+        bullets.forEach((b, bi) => {
+            b.y += b.speed;
+            if (b.y < -50 || b.y > canvas.height + 50) bullets.splice(bi, 1);
+        });
+
+
+        enemies.forEach((en, ei) => {
+            en.y += en.speed;
+            if (en.type === 'wave') en.x = en.startX + Math.sin(en.y * en.freq) * en.amp;
+
+
+            if (frame % 80 === 0) {
+                let bulletColors = ['white', 'cyan', 'orange', 'green'];
+                let bColor = bulletColors[Math.floor(Math.random() * bulletColors.length)];
+                if (en.type === 'spade') {
+                    let angle = Math.atan2(player.y - en.y, player.x - en.x);
+                    enemyBullets.push({ x: en.x, y: en.y, vx: Math.cos(angle)*4, vy: Math.sin(angle)*4, size: 6, color: bColor });
+                } else if (en.type === 'diamond') {
+                    for(let a=0; a<Math.PI*2; a+=Math.PI/3) {
+                        enemyBullets.push({ x: en.x, y: en.y, vx: Math.cos(a)*3, vy: Math.sin(a)*3, size: 5, color: 'white' });
+                    }
+                } else {
+                    enemyBullets.push({ x: en.x, y: en.y, vx: 0, vy: 4, size: 6, color: bColor });
+                }
+            }
+
+
+            if (en.y > canvas.height + 40) enemies.splice(ei, 1);
+
+
+            bullets.forEach((b, bi) => {
+                let dist = Math.hypot(b.x - en.x, b.y - en.y);
+                if (dist < b.size + 18) {
+                    en.hp -= (b.type === 'rude') ? 4 : 1;
+                    if (b.type !== 'rude') bullets.splice(bi, 1);
+                    if (en.hp <= 0) {
+                        createExplosion(en.x, en.y, '#d000ff', 12); enemies.splice(ei, 1); score += 100; addTP(5);
+                    }
+                }
+            });
+        });
+
+
+        bosses.forEach((boss, bi) => {
+            bullets.forEach((b, bi2) => {
+                let dist = Math.hypot(b.x - boss.x, b.y - boss.y);
+                if (dist < b.size + 25) {
+                    boss.hp -= (b.type === 'rude') ? 4 : 1;
+                    if (b.type !== 'rude') bullets.splice(bi2, 1);
+                    if (boss.hp <= 0) {
+                        createExplosion(boss.x, boss.y, '#ff00ff', 30); score += 500; addTP(50);
+                        bosses.splice(bi, 1);
+                    }
+                }
+            });
+        });
+
+
+        let isCyanStationary = (activeSoul === 5 || activeSoul === 8) && (Math.abs(player.x - player.lastX) < 0.1 && Math.abs(player.y - player.lastY) < 0.1);
+
+
+        enemyBullets.forEach((eb, ebi) => {
+            eb.x += eb.vx; eb.y += eb.vy;
+            if (eb.x < -20 || eb.x > canvas.width+20 || eb.y > canvas.height+20) { enemyBullets.splice(ebi, 1); return; }
+
+
+            let dist = Math.hypot(eb.x - player.x, eb.y - player.y);
+            let coreHitboxSize = isFocused ? 3 : 6;
+
+
+            if (isCyanStationary && dist < 28 + eb.size) {
+                enemyBullets.splice(ebi, 1); createExplosion(eb.x, eb.y, '#00ffff', 6); addTP(6);
+                spawnText("BARRIER BLOCK!", player.x, player.y - 30, '#00ffff');
+                return;
+            }
+
+
+            // GREEN SOUL Spear Block
+            if (activeSoul === 4 && fireKey) {
+                let spearTipX = player.x + Math.cos(player.spearAngle) * 35;
+                let spearTipY = player.y + Math.sin(player.spearAngle) * 35;
+                let distToSpearTip = Math.hypot(eb.x - spearTipX, eb.y - spearTipY);
+
+
+                if (distToSpearTip < eb.size + 14) {
+                    enemyBullets.splice(ebi, 1);
+                    createExplosion(eb.x, eb.y, '#00ff00', 5);
+                    addTP(8);
+                    spawnText("SPEAR BLOCK!", player.x, player.y - 30, '#00ff00');
+                    AudioEngine.play(550, 'square', 0.08, 0.1);
+                    return;
+                }
+            }
+
+
+            // YEL-GRN COMBO Square Shield Block
+            if (activeSoul === 9 && fireKey) {
+                let boxSize = 34;
+                if (Math.abs(eb.x - player.x) < boxSize && Math.abs(eb.y - player.y) < boxSize) {
+                    enemyBullets.splice(ebi, 1);
+                    createExplosion(eb.x, eb.y, '#00ff00', 4);
+                    addTP(8);
+                    spawnText("SQUARE BLOCK!", player.x, player.y - 30, '#00ff00');
+                    AudioEngine.play(500, 'square', 0.08, 0.1);
+                    return;
+                }
+            }
+
+
+            if (eb.color === 'green' && dist < coreHitboxSize + eb.size + 12) {
+                enemyBullets.splice(ebi, 1); hp = Math.min(maxHp, hp + 10); createExplosion(player.x, player.y, '#00ff00', 10);
+                spawnText("+10 HP HEAL!", player.x, player.y - 25, '#00ff00');
+                return;
+            }
+
+
+            if (dist < coreHitboxSize + eb.size) {
+                enemyBullets.splice(ebi, 1); damagePlayer(12, eb.color);
+            } else if (dist < coreHitboxSize + eb.size + 15) {
+                if (!eb.grazed) { eb.grazed = true; addTP(3); score += 10; spawnText("GRAZE!", player.x, player.y - 25, '#ff00ff'); }
+            }
+        });
+
+
+        if ((activeSoul === 7 || activeSoul === 10) && player.vy === 18 && player.isGrounded) {
+            enemies.forEach(en => { createExplosion(en.x, en.y, SOULS[activeSoul].color, 15); score += 50; });
+            enemyBullets.forEach(b => createExplosion(b.x, b.y, '#ffffff', 3));
+            enemies = []; enemyBullets = [];
+            spawnText("SHOCKWAVE CLEAR!", player.x, player.y - 30, SOULS[activeSoul].color);
+        }
+
+
+        particles.forEach((p, pi) => { p.x += p.vx; p.y += p.vy; p.life--; if (p.life <= 0) particles.splice(pi, 1); });
+        combatTexts.forEach((ct, cti) => { ct.y -= 0.5; ct.life--; if (ct.life < 15) ct.alpha = ct.life / 15; if (ct.life <= 0) combatTexts.splice(cti, 1); });
+
+
+        document.getElementById('hp-fill').style.width = `${(hp/maxHp)*100}%`;
+        document.getElementById('hp-text').innerText = `{maxHp}`;
+        document.getElementById('tp-fill').style.width = `${tp}%`;
+        document.getElementById('tp-text').innerText = `${Math.floor(tp)}%`;
+        document.getElementById('score-display').innerText = score;
+
+
+        document.getElementById('s-rude').className = `spell-badge ${tp >= 40 ? 'ready' : ''}`;
+        document.getElementById('s-heal').className = `spell-badge ${tp >= 50 ? 'ready' : ''}`;
+        document.getElementById('s-snow').className = `spell-badge ${tp >= 100 ? 'ready' : ''}`;
+    }
+
+
+    function draw() {
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#444'; backgroundStars.forEach(s => ctx.fillRect(s.x, s.y, 2, 2));
+
+
+        bosses.forEach(boss => {
+            ctx.save(); ctx.translate(boss.x, boss.y);
+            ctx.fillStyle = (boss.type === 'jevil') ? '#9400D3' : '#FFD700';
+            ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+            ctx.fillStyle = '#444'; ctx.fillRect(boss.x - 40, boss.y - 38, 80, 8);
+            ctx.fillStyle = '#ff006e'; ctx.fillRect(boss.x - 40, boss.y - 38, (boss.hp / boss.maxHp) * 80, 8);
+        });
+
+
+        enemies.forEach(en => {
+            ctx.save(); ctx.translate(en.x, en.y);
+            ctx.fillStyle = (en.type === 'spade') ? '#3a86ff' : ((en.type === 'diamond') ? '#ff006e' : '#ffbe0b');
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+
+
+        bullets.forEach(b => {
+            ctx.fillStyle = b.type === 'rude' ? '#ff00ff' : '#ffff00';
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill();
+        });
+
+
+        enemyBullets.forEach(eb => {
+            ctx.fillStyle = eb.color === 'cyan' ? '#00ffff' : (eb.color === 'orange' ? '#ff9900' : (eb.color === 'green' ? '#00ff00' : '#ffffff'));
+            ctx.beginPath(); ctx.arc(eb.x, eb.y, eb.size, 0, Math.PI*2); ctx.fill();
+        });
+
+
+        particles.forEach(p => {
+            ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 30;
+            ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+        });
+        ctx.globalAlpha = 1.0;
+
+
+        if (gameActive) {
+            ctx.save(); ctx.translate(player.x, player.y);
+
+
+            if ([3, 10].includes(activeSoul)) {
+                ctx.restore(); ctx.save(); ctx.strokeStyle = '#331133'; ctx.lineWidth = 2;
+                lanes.forEach(ly => { ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(canvas.width, ly); ctx.stroke(); });
+                ctx.restore(); ctx.save(); ctx.translate(player.x, player.y);
+            }
+
+
+            let isCyanStationary = (activeSoul === 5 || activeSoul === 8) && (Math.abs(player.x - player.lastX) < 0.1 && Math.abs(player.y - player.lastY) < 0.1);
+            if (isCyanStationary) {
+                ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.stroke();
+            }
+
+
+            // GREEN SOUL Spear Rendering
+            if (activeSoul === 4 && (keys['z'] || keys[' '])) {
+                ctx.save();
+                ctx.rotate(player.spearAngle);
+                ctx.strokeStyle = '#00ff00';
+                ctx.fillStyle = '#00ff00';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(38, 0);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(38, 0);
+                ctx.lineTo(30, -5);
+                ctx.lineTo(30, 5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+
+            // YEL-GRN Square Shield Rendering
+            if (activeSoul === 9 && (keys['z'] || keys[' '])) {
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(-34, -34, 68, 68);
+            }
+
+
+            ctx.fillStyle = SOULS[activeSoul].color;
+            if (activeSoul === 2 || activeSoul === 9) ctx.scale(1, -1);
+
+
+            ctx.beginPath();
+            ctx.moveTo(0, -6);
+            ctx.bezierCurveTo(3, -12, 10, -10, 10, -3);
+            ctx.bezierCurveTo(10, 3, 3, 7, 0, 11);
+            ctx.bezierCurveTo(-3, 7, -10, 3, -10, -3);
+            ctx.bezierCurveTo(-10, -10, -3, -12, 0, -6);
+            ctx.closePath(); ctx.fill();
+            ctx.restore();
+        } else {
+            ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ff0000'; ctx.font = '24px "Courier New"'; ctx.textAlign = 'center';
+            ctx.fillText("IT SEEMS YOU HAVE PERISHED.", canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillStyle = '#ffffff'; ctx.font = '16px "Courier New"';
+            ctx.fillText("Press [ENTER] to try again.", canvas.width / 2, canvas.height / 2 + 30);
+        }
+
+
+        combatTexts.forEach(ct => {
+            ctx.save(); ctx.globalAlpha = ct.alpha; ctx.fillStyle = ct.color;
+            ctx.font = '12px "Courier New"'; ctx.textAlign = 'center';
+            ctx.fillText(ct.txt, ct.x, ct.y); ctx.restore();
+        });
+    }
+
+
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
+    loop();
+</script>
+
+
+</body>
+</html>
